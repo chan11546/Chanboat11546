@@ -1,0 +1,36 @@
+name: Boat 1-6-2 Monitor
+
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: boat-162-monitor
+  cancel-in-progress: false
+
+jobs:
+  monitor:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run monitor
+        env:
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+          MANUAL_RUN: ${{ github.event_name == 'workflow_dispatch' }}
+        run: python monitor.py
+
+      - name: Save candidate history
+        run: |
+          git config user.name "boat-monitor-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add state.json candidates.csv 2>/dev/null || true
+          if ! git diff --cached --quiet; then
+            git commit -m "Update candidate history"
+            git push
+          fi
